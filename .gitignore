@@ -1,0 +1,31 @@
+   # 忽略 Python 虚拟环境
+   ragservice_py311/
+
+   # 忽略 Python 编译文件
+   *.pyc
+   __pycache__/
+
+   # 忽略日志文件
+   *.log
+
+   # 忽略 .DS_Store 文件（Mac OS）
+   .DS_Store
+
+   # 忽略 .env 文件（通常包含敏感信息）
+   .env
+
+   # 忽略 IDE 相关文件
+   .vscode/
+   .idea/
+
+   # 忽略大型数据文件
+   *.csv
+   *.json
+   *.pkl
+
+   # 忽略构建输出
+   build/
+   dist/
+
+   # 忽略临时文件
+   *.tmp

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package pdfservice;
+
+service PdfService {
+  rpc ExtractText (PdfRequest) returns (stream PdfResponse) {}
+}
+
+message PdfRequest {
+  string file_path = 1;
+}
+
+message PdfResponse {
+  int32 page_number = 1;
+  string sentence_chunk = 2;
+  int32 chunk_char_count = 3;
+  int32 chunk_word_count = 4;
+  int32 chunk_token_count = 5;
+  repeated float embedding = 6;
+}
+
+
