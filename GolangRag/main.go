@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	//"fmt"
 	"io"
 	"log"
 
@@ -10,6 +10,7 @@ import (
 	pb	 "github.com/qiansuo1/ragservice/grpcclient" 
 	tests "github.com/qiansuo1/ragservice/tests/pdf"
 	    "google.golang.org/grpc/credentials/insecure"
+	ragserver "github.com/qiansuo1/ragservice/ragserver"	
 )
 
 func Pdfclient() {
@@ -32,7 +33,8 @@ func Pdfclient() {
 	if err != nil {
 		log.Fatalf("Failed to extract text: %v", err)
 	}
-
+	ctx := context.Background()
+	wvClient, err := ragserver.InitWeaviate(ctx)
 	for {
 		resp, err := stream.Recv()
 		if err == io.EOF {
@@ -41,16 +43,17 @@ func Pdfclient() {
 		if err != nil {	
 			log.Fatalf("Failed to receive response: %v", err)
 		}
-		fmt.Printf("Page Number: %d\n", resp.PageNumber)
-        fmt.Printf("Sentence Chunk: %s\n", resp.SentenceChunk)
-        fmt.Printf("Chunk Char Count: %d\n", resp.ChunkCharCount)
-        fmt.Printf("Chunk Word Count: %d\n", resp.ChunkWordCount)
-        fmt.Printf("Chunk Token Count: %d\n", resp.ChunkTokenCount)
-        fmt.Printf("Embedding: [%d elements]\n", len(resp.Embedding))
+		// fmt.Printf("Page Number: %d\n", resp.PageNumber)
+        // fmt.Printf("Sentence Chunk: %s\n", resp.SentenceChunk)
+        // fmt.Printf("Chunk Char Count: %d\n", resp.ChunkCharCount)
+        // fmt.Printf("Chunk Word Count: %d\n", resp.ChunkWordCount)
+        // fmt.Printf("Chunk Token Count: %d\n", resp.ChunkTokenCount)
+        // fmt.Printf("Embedding: [%d elements]\n", len(resp.Embedding))
+		ragserver.AddToWeaviate(wvClient, resp.PageNumber, resp.SentenceChunk, resp.Embedding)	
         // 可以选择打印嵌入向量的前几个元素
-        if len(resp.Embedding) > 5 {
-          fmt.Printf("First 5 embedding values: %v\n", resp.Embedding[:5])
-        }
+        // if len(resp.Embedding) > 5 {
+        //   fmt.Printf("First 5 embedding values: %v\n", resp.Embedding[:5])
+        // }
 	}	
 }
 

@@ -1,3 +1,6 @@
+
+// +build ignore
+
 // package ragserver
 
 
@@ -37,3 +40,5 @@
 // 	w.Header().Set("Content-Type", "application/json")
 // 	w.Write(js)
 // }
+
+// 
