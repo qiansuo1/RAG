@@ -28,3 +28,10 @@ func (s *VectorService) AddVector( pageNum int64, text string, vector []float32)
 func (s *VectorService) Search(query string, limit int) ([]weaviate.SearchResult, error) {
     return s.wvClient.SearchSimilar(query, limit)
 }
+
+func (s *VectorService) ListAll(limit int) ([]weaviate.SearchResult, error) {
+    if limit <= 0 {
+        limit = 10000 // 默认值
+    }
+    return s.wvClient.ListAll(limit)
+}

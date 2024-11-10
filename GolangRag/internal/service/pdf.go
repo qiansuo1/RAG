@@ -28,7 +28,6 @@ func NewPdfService(cfg *config.Config, vectorSvc *VectorService) (*PdfService, e
     if err != nil {
         return nil, fmt.Errorf("创建gRPC连接失败: %w", err)
     }
-	defer conn.Close()
 	
 	//Creating a grpc client
     client := grpcclient.NewPdfServiceClient(conn)

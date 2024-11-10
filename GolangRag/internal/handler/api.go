@@ -36,7 +36,9 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
     api := r.Group("/api")
     {
         api.POST("/pdf/upload", h.HandlePDFUpload)
+        api.POST("/pdf/process", h.HandleLocalPDFProcess)
         api.POST("/vectors/search", h.HandleVectorSearch)
+        api.GET("/vectors/list",h.HandleGetAllVectors)
     }
 }
 
@@ -151,5 +153,81 @@ func (h *Handler) HandleVectorSearch(c *gin.Context) {
 
     c.JSON(http.StatusOK, gin.H{
         "results": results,
+    })
+}
+
+// HandleGetAllVectors 获取所有向量数据
+func (h *Handler) HandleGetAllVectors(c *gin.Context) {
+    results, err := h.vectorSvc.ListAll(10000)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "获取数据失败",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    // 如果没有数据
+    if len(results) == 0 {
+        c.JSON(http.StatusOK, gin.H{
+            "message": "没有找到任何数据",
+            "data":    []interface{}{},
+        })
+        return
+    }
+
+    // 返回成功结果
+    c.JSON(http.StatusOK, gin.H{
+        "message": "获取数据成功",
+        "data":    results,
+        "total":   len(results),
+    })
+}
+
+// ProcessRequest 处理本地PDF文件的请求结构
+type ProcessRequest struct {
+    Filename string `json:"filename" binding:"required"`
+}
+
+// HandleLocalPDFProcess 处理本地PDF文件
+func (h *Handler) HandleLocalPDFProcess(c *gin.Context) {
+    var req ProcessRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "无效的请求参数",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    // 验证文件类型
+    if filepath.Ext(req.Filename) != ".pdf" {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "只支持PDF文件",
+        })
+        return
+    }
+
+    // 验证文件是否存在
+    if _, err := os.Stat(req.Filename); os.IsNotExist(err) {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "文件不存在",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    // 处理PDF文件
+    if err := h.processWithRetry(req.Filename); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "处理PDF失败",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "message": "PDF处理成功",
+        "filename": req.Filename,
     })
 }

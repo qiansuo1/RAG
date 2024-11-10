@@ -1,0 +1,3 @@
+grpc_address: "localhost:50051"
+weaviate_host: "your-weaviate-host"
+weaviate_key: "your-weaviate-key"

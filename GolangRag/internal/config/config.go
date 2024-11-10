@@ -19,7 +19,7 @@ type Config struct {
 
 func LoadConfig() (Config, error) {
 	var config Config
-	file, err := os.ReadFile("../config/config.yaml")
+	file, err := os.ReadFile("../configs/config.yaml")
 	if err != nil {
 		return config, fmt.Errorf("读取配置文件失败: %v", err)
 	}
