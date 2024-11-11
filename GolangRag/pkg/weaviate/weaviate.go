@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/weaviate/weaviate-go-client/v4/weaviate"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate/auth"
-	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
-	"github.com/weaviate/weaviate/entities/models"
+     "github.com/weaviate/weaviate-go-client/v4/weaviate/auth"
 )
 
 
@@ -22,8 +19,8 @@ var (
     ErrConnectionFailed  = errors.New("连接失败")
     ErrInvalidVector     = errors.New("无效的向量数据")
     ErrSearchFailed      = errors.New("搜索失败")
-    ErrSchemaCreateFailed = errors.New("创建Schema失败")
-    ErrSchemaExist = errors.New("Schema已存在")
+    ErrCollectionCreateFailed = errors.New("创建集合失败")
+    ErrCollectionExist = errors.New("集合已存在")
 )
 
 
@@ -72,54 +69,14 @@ func NewClient(Host,Key string) (*Client, error) {
     return &myWeaviateClient, nil
 }
 
-// CreateSchema 创建Schema
-func (c *Client) CreateSchema(className string) error {
-
-    	   // 检查类是否存在
-	   exists, err := c.client.Schema().ClassExistenceChecker().
-	   WithClassName(className).
-	   Do(c.ctx)
-   if err != nil {
-	   return err
-   }
-       // 只在类不存在时创建
-	 if !exists {
-      
-    classObj := &models.Class{
-        Class: className,
-        Properties: []*models.Property{
-            {
-                Name:     "pageNumber",
-                DataType: []string{"int"},
-            },
-            {
-                Name:     "content",
-                DataType: []string{"text"},
-            },
-        },
-        Vectorizer: "none", // 使用自定义向量
-    }
-    
-    err = c.client.Schema().ClassCreator().WithClass(classObj).Do(c.ctx)
-    if err != nil {
-        return fmt.Errorf("创建Schema失败: %w", err)
-    }
-
-    return nil
-
-    }
-
-    return ErrSchemaExist
-}
 
 
-
-const DefaultClassName = "Document"
+const DefaultCollectionName = "Document"
 
 // 使用已有的CreateSchema函数
-func (c *Client) ensureClassExists() error {
-    err := c.CreateSchema(DefaultClassName)
-    if err == ErrSchemaExist {
+func (c *Client) ensureCollectionExists() error {
+    err := c.CreateCollection(CollectionConfig{Name: DefaultCollectionName})
+    if err == ErrCollectionExist {
         // class已存在，这是正常情况
         return nil
     }
@@ -130,180 +87,13 @@ func (c *Client) ensureClassExists() error {
 }
 
 
-func (c *Client) AddEmbedding(pageNum int64, text string, vector []float32) error {
-  
-    if err := c.ensureClassExists(); err != nil {
-        return err
-    }
-
-    className := "Document"
-    properties := map[string]interface{}{
-        "pageNumber": pageNum,
-        "content":    text,
-    }
-
-    _, err := c.client.Data().Creator().
-        WithClassName(className).
-        WithProperties(properties).
-        WithVector(vector).
-        Do(c.ctx)
-
-    if err != nil {
-        return fmt.Errorf("添加文档失败: %w", err)
-    }
-
-    return nil
-}
-
-// SearchSimilar 搜索相似文档
-func (c *Client) SearchSimilar(queryText string, limit int) ([]SearchResult, error) {
-    className := "Document"
-    // 构建查询
-    nearText := c.client.GraphQL().NearTextArgBuilder().
-        WithConcepts([]string{queryText})
-
-    fields := []graphql.Field{
-        {Name: "pageNumber"},
-        {Name: "content"},
-        {Name: "_additional { certainty }"},
-    }
-    log.Printf("执行查询: className=%s, fields=%+v", className, fields)
-    // 执行查询
-    result, err := c.client.GraphQL().Get().
-        WithClassName(className).
-        WithFields(fields...).
-        WithNearText(nearText).
-        WithLimit(limit).
-        Do(c.ctx)
-
-    if err != nil {
-        log.Printf("查询错误: %v", err)
-        return nil, fmt.Errorf("搜索文档失败: %w", err)
-    }
-
-    return c.parseSearchResults(result)
-}
-
-// SearchResult 搜索结果结构
-type SearchResult struct {
-    PageNumber int64   `json:"pageNumber"`
-    Content    string  `json:"content"`
-    Certainty  float64 `json:"certainty"`
-}
-
-// parseSearchResults 解析搜索结果
-func (c *Client) parseSearchResults(result *models.GraphQLResponse) ([]SearchResult, error) {
-    if result == nil || result.Data == nil {
-        log.Printf("结果为空: result=%v", result)
-        return nil, fmt.Errorf("无效的搜索结果")
-    }
-        // 添加错误检查
-        if len(result.Errors) > 0 {
-            var errMsgs []string
-            for _, err := range result.Errors {
-                if err != nil {
-                    errMsgs = append(errMsgs, fmt.Sprintf(
-                        "消息: %s, 路径: %s", 
-                        err.Message,
-                        strings.Join(err.Path, "."),
-                    ))
-                }
-            }
-            return nil, fmt.Errorf("GraphQL错误: %s", strings.Join(errMsgs, "; "))
-        }
-    
-    className := "Document"
-    data, ok := result.Data["Get"].(map[string]interface{})
-    if !ok {
-        log.Printf("无法解析Get字段: %+v", result.Data)
-        return nil, fmt.Errorf("无效的响应格式: 缺少 Get 字段")
-    }
-
-    documents, ok := data[className].([]interface{})
-    if !ok {
-        log.Printf("无法解析%s字段: %+v", className, data)
-        return nil, fmt.Errorf("无效的响应格式: 缺少 %s 字段", className)
-    }
-    log.Printf("找到 %d 条文档", len(documents))
-    var results []SearchResult
-
-    // 解析GraphQL响应
-    for i, doc := range documents  {
-        
-        document, ok := doc.(map[string]interface{})
-        if !ok {
-            log.Printf("无法解析文档 #%d: %+v", i, doc)
-            continue // 跳过无效的文档
-        }
-
-        result := SearchResult{}
-        
-        // 解析页码
-        if pageNum, ok := document["pageNumber"].(float64); ok {
-            result.PageNumber = int64(pageNum)
-        }else {
-            log.Printf("文档 #%d 无法解析页码: %v", i, document["pageNumber"])
-        }
-        
-        // 解析内容
-        if content, ok := document["sentenceChunk"].(string); ok {
-            result.Content = content
-        } else {
-            log.Printf("文档 #%d 无法解析内容: %v", i, document["sentenceChunk"])
-            continue // 如果没有内容，跳过这条记录
-        }
-        
-        results = append(results, result)
-    }
-                
-    log.Printf("成功解析 %d 条结果", len(results))
-
-    return results, nil
-}
 
 
 
-// DeleteSchema 删除Schema
-func (c *Client) DeleteSchema(className string) error {
-    
-    err := c.client.Schema().ClassDeleter().WithClassName(className).Do(c.ctx)
-    if err != nil {
-        return fmt.Errorf("删除Schema失败: %w", err)
-    }
 
-    return nil
-}
 
-// ListAll 获取所有文档
-func (c *Client) ListAll(limit int) ([]SearchResult, error) {
-    className := "Document"
-    
-    // 构建查询字段
-    fields := []graphql.Field{
-        {Name: "pageNumber"},
-        {Name: "sentenceChunk"},
-        {
-            Name: "_additional",
-            Fields: []graphql.Field{
-                {Name: "vector"},
-            },
-        },
-    }
 
-    // 执行查询，不使用任何过滤条件
-    result, err := c.client.GraphQL().Get().
-        WithClassName(className).
-        WithFields(fields...).
-        WithLimit(limit).
-        Do(c.ctx)
 
-    if err != nil {
-        log.Printf("查询错误: %v", err)  // 添加日志以便调试
-        return nil, fmt.Errorf("获取文档列表失败: %w", err)
-    }
-
-    return c.parseSearchResults(result)
-}
 
 // func initWeaviate(ctx context.Context) (*weaviate.Client, error) {
 

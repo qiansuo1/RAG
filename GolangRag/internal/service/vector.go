@@ -29,7 +29,7 @@ func (s *VectorService) Search(query string, limit int) ([]weaviate.SearchResult
     return s.wvClient.SearchSimilar(query, limit)
 }
 
-func (s *VectorService) ListAll(limit int) ([]weaviate.SearchResult, error) {
+func (s *VectorService) ListAll(limit int) ([]weaviate.ListResult, error) {
     if limit <= 0 {
         limit = 10000 // 默认值
     }
