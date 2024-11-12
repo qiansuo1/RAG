@@ -35,3 +35,7 @@ func (s *VectorService) ListAll(limit int) ([]weaviate.ListResult, error) {
     }
     return s.wvClient.ListAll(limit)
 }
+
+func (s *VectorService) Delete(ids []string) error {
+    return s.wvClient.DeleteDate(ids)
+}   

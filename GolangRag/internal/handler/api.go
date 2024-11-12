@@ -39,6 +39,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
         api.POST("/pdf/process", h.HandleLocalPDFProcess)
         api.POST("/vectors/search", h.HandleVectorSearch)
         api.GET("/vectors/list",h.HandleGetAllVectors)
+        api.DELETE("/vectors/delete",h.HandleDeleteVector)
     }
 }
 
@@ -231,3 +232,28 @@ func (h *Handler) HandleLocalPDFProcess(c *gin.Context) {
         "filename": req.Filename,
     })
 }
+
+// HandleDeleteVector 删除向量数据
+type DeleteRequest struct {
+    IDs []string `json:"ids" binding:"required"`
+}
+
+func (h *Handler) HandleDeleteVector(c *gin.Context) {
+    var req DeleteRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "无效的请求参数",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    // 删除向量数据
+    if err := h.vectorSvc.Delete(req.IDs); err != nil { 
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "删除失败",
+            "detail": err.Error(),
+        })
+        return
+    }   
+}   
