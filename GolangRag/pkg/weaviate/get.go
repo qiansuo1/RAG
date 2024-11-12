@@ -3,12 +3,12 @@ package weaviate
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/weaviate/weaviate-go-client/v4/weaviate/graphql"
 	"github.com/weaviate/weaviate/entities/models"
-)	
-
+)
 
 // SearchSimilar 搜索相似文档
 func (c *Client) SearchSimilar(queryText string, limit int) ([]SearchResult, error) {
@@ -227,4 +227,151 @@ func (c *Client) parseListResults(result *models.GraphQLResponse) ([]ListResult,
     }
     return results, nil 
 
+}
+
+
+type NearTextResult struct {
+    PageNumber int64   `json:"pageNumber"`
+    SentenceChunk    string  `json:"sentenceChunk"`
+     Certainty  float64   `json:"certainty,omitempty"`
+    Distance   float64   `json:"distance,omitempty"`
+}   
+
+func (c *Client) GetNearText(inputText string, limit int) ([]NearTextResult, error) {
+    
+    exists, err := c.client.Schema().ClassExistenceChecker().
+    WithClassName("Document").
+        Do(c.ctx)
+    if err != nil {
+        return nil, fmt.Errorf("检查集合是否存在失败: %w", err)
+    }   
+    if !exists {
+        return nil, fmt.Errorf("集合 Document 不存在")
+    }
+
+    nearText := c.client.GraphQL().NearTextArgBuilder().
+        WithConcepts([]string{inputText})
+
+    fields := []graphql.Field{
+        {Name: "pageNumber"},
+        {Name: "sentenceChunk"},
+        {
+            Name: "_additional",
+            Fields: []graphql.Field{
+                {Name: "certainty"},
+                {Name: "distance"},
+            },
+        },
+    }   
+    log.Printf("执行相似度搜索: text=%s, limit=%d", inputText, limit)
+    response, err := c.client.GraphQL().Get().
+        WithClassName("Document").
+        WithFields(fields...).
+        WithNearText(nearText).
+        WithLimit(limit).
+        Do(c.ctx)   
+    if err != nil { 
+        log.Printf("查询错误: %v", err)
+        return nil, fmt.Errorf("获取文档列表失败: %w", err)
+    }
+    if len(response.Errors) > 0 {
+        var errMsgs []string
+        for _, graphqlErr := range response.Errors {
+            errMsgs = append(errMsgs, fmt.Sprintf(
+                "GraphQL错误: 消息=%s, 路径=%v",
+                graphqlErr.Message,
+                graphqlErr.Path,
+               
+            ))
+        }
+        log.Printf("GraphQL查询失败: %s", strings.Join(errMsgs, "; "))
+        return nil, fmt.Errorf("GraphQL查询失败: %s", strings.Join(errMsgs, "; "))
+    }
+    log.Printf("Weaviate响应: %+v", response)
+    return c.parseNearTextResults(response)
+}
+// parseSearchResults 解析结果时处理两种相似度
+func (c *Client) parseNearTextResults(result *models.GraphQLResponse) ([]NearTextResult, error) {
+        if result == nil || result.Data == nil {
+        log.Printf("结果为空: result=%v", result)
+        return nil, fmt.Errorf("列表搜索为空,表中无数据")
+    }
+    // 错误检查
+    if len(result.Errors) > 0 {
+        var errMsgs []string
+        for _, err := range result.Errors {
+            if err != nil {
+                errMsgs = append(errMsgs, fmt.Sprintf(
+                    "消息: %s, 路径: %s", 
+                    err.Message,
+                    strings.Join(err.Path, "."),
+                ))
+            }
+        }
+        return nil, fmt.Errorf("GraphQL错误: %s", strings.Join(errMsgs, "; "))
+    }
+
+
+    className := "Document"
+    data, ok := result.Data["Get"].(map[string]interface{})
+    if !ok {
+        return nil, fmt.Errorf("无效的响应格式: 缺少 Get 字段")
+    }
+
+    documents, ok := data[className].([]interface{})
+    if !ok {
+        return nil, fmt.Errorf("无效的响应格式: 缺少 %s 字段", className)
+    }
+
+    var results []NearTextResult
+    for i, doc := range documents {
+        document, ok := doc.(map[string]interface{})
+        if !ok {
+            log.Printf("无法解析文档 #%d: %+v", i, doc)
+            continue
+        }
+
+        result := NearTextResult{}
+        
+        // 解析页码
+        if pageNum, ok := document["pageNumber"].(float64); ok {
+            result.PageNumber = int64(pageNum)
+        } else {
+            log.Printf("文档 #%d 无法解析页码: %v", i, document["pageNumber"])
+        }
+        
+        // 解析内容
+        if sentenceChunk, ok := document["sentenceChunk"].(string); ok {
+            result.SentenceChunk = sentenceChunk
+        } else {
+            log.Printf("文档 #%d 无法解析内容: %v", i, document["sentenceChunk"])
+            continue
+        }
+
+        // 解析额外信息
+        if additional, ok := document["_additional"].(map[string]interface{}); ok {
+                // 解析 certainty
+            if certainty, ok := additional["certainty"].(float64); ok {
+                result.Certainty = certainty
+            }
+            
+            // 解析 distance
+            if distance, ok := additional["distance"].(float64); ok {
+                result.Distance = distance
+            }
+        }
+
+        results = append(results, result)
+    }
+
+    if len(results) == 0 {
+        return nil, fmt.Errorf("未找到任何相似内容")
+    }
+
+    // 按相似度排序（默认使用 certainty）
+    sort.Slice(results, func(i, j int) bool {
+        return results[i].Certainty > results[j].Certainty
+    })
+
+    return results, nil
 }

@@ -40,6 +40,7 @@ func (h *Handler) SetupRoutes(r *gin.Engine) {
         api.POST("/vectors/search", h.HandleVectorSearch)
         api.GET("/vectors/list",h.HandleGetAllVectors)
         api.DELETE("/vectors/delete",h.HandleDeleteVector)
+        api.POST("/vectors/near-text", h.HandleGetNearText)
     }
 }
 
@@ -256,4 +257,35 @@ func (h *Handler) HandleDeleteVector(c *gin.Context) {
         })
         return
     }   
+}   
+
+
+type NearTextRequest struct {
+    Text string `json:"text" binding:"required"`
+    Limit int    `json:"limit,omitempty"`
+}
+
+// HandleGetNearText 处理获取近似文本的请求
+func (h *Handler) HandleGetNearText(c *gin.Context) {
+    var req NearTextRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "无效的请求参数",
+            "detail": err.Error(),
+        })
+        return
+    }   
+
+    results, err := h.vectorSvc.GetNearText(req.Text, req.Limit)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "获取近似文本失败",
+            "detail": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "results": results,
+    })  
 }   

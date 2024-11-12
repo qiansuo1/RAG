@@ -39,3 +39,7 @@ func (s *VectorService) ListAll(limit int) ([]weaviate.ListResult, error) {
 func (s *VectorService) Delete(ids []string) error {
     return s.wvClient.DeleteDate(ids)
 }   
+
+func (s *VectorService) GetNearText(inputText string, limit int) ([]weaviate.NearTextResult, error) {
+    return s.wvClient.GetNearText(inputText, limit)
+}
