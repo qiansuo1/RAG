@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	PdfService_ExtractText_FullMethodName = "/pdfservice.PdfService/ExtractText"
+	PdfService_ExtractText_FullMethodName   = "/pdfservice.PdfService/ExtractText"
+	PdfService_VectorizeText_FullMethodName = "/pdfservice.PdfService/VectorizeText"
 )
 
 // PdfServiceClient is the client API for PdfService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PdfServiceClient interface {
 	ExtractText(ctx context.Context, in *PdfRequest, opts ...grpc.CallOption) (PdfService_ExtractTextClient, error)
+	VectorizeText(ctx context.Context, in *VectorizeRequest, opts ...grpc.CallOption) (*VectorizeResponse, error)
 }
 
 type pdfServiceClient struct {
@@ -69,11 +71,21 @@ func (x *pdfServiceExtractTextClient) Recv() (*PdfResponse, error) {
 	return m, nil
 }
 
+func (c *pdfServiceClient) VectorizeText(ctx context.Context, in *VectorizeRequest, opts ...grpc.CallOption) (*VectorizeResponse, error) {
+	out := new(VectorizeResponse)
+	err := c.cc.Invoke(ctx, PdfService_VectorizeText_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PdfServiceServer is the server API for PdfService service.
 // All implementations must embed UnimplementedPdfServiceServer
 // for forward compatibility
 type PdfServiceServer interface {
 	ExtractText(*PdfRequest, PdfService_ExtractTextServer) error
+	VectorizeText(context.Context, *VectorizeRequest) (*VectorizeResponse, error)
 	mustEmbedUnimplementedPdfServiceServer()
 }
 
@@ -83,6 +95,9 @@ type UnimplementedPdfServiceServer struct {
 
 func (UnimplementedPdfServiceServer) ExtractText(*PdfRequest, PdfService_ExtractTextServer) error {
 	return status.Errorf(codes.Unimplemented, "method ExtractText not implemented")
+}
+func (UnimplementedPdfServiceServer) VectorizeText(context.Context, *VectorizeRequest) (*VectorizeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VectorizeText not implemented")
 }
 func (UnimplementedPdfServiceServer) mustEmbedUnimplementedPdfServiceServer() {}
 
@@ -118,13 +133,36 @@ func (x *pdfServiceExtractTextServer) Send(m *PdfResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _PdfService_VectorizeText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VectorizeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PdfServiceServer).VectorizeText(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PdfService_VectorizeText_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PdfServiceServer).VectorizeText(ctx, req.(*VectorizeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PdfService_ServiceDesc is the grpc.ServiceDesc for PdfService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PdfService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "pdfservice.PdfService",
 	HandlerType: (*PdfServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "VectorizeText",
+			Handler:    _PdfService_VectorizeText_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "ExtractText",

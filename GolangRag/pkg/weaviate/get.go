@@ -230,6 +230,7 @@ func (c *Client) parseListResults(result *models.GraphQLResponse) ([]ListResult,
 }
 
 
+//相似文本搜索
 type NearTextResult struct {
     PageNumber int64   `json:"pageNumber"`
     SentenceChunk    string  `json:"sentenceChunk"`
@@ -237,7 +238,7 @@ type NearTextResult struct {
     Distance   float64   `json:"distance,omitempty"`
 }   
 
-func (c *Client) GetNearText(inputText string, limit int) ([]NearTextResult, error) {
+func (c *Client) GetNearText(inputVectorOfText []float32, limit int) ([]NearTextResult, error) {
     
     exists, err := c.client.Schema().ClassExistenceChecker().
     WithClassName("Document").
@@ -248,9 +249,23 @@ func (c *Client) GetNearText(inputText string, limit int) ([]NearTextResult, err
     if !exists {
         return nil, fmt.Errorf("集合 Document 不存在")
     }
+// //如果没有配置向量化，则使用grpc调用python端的向量化模型
+// hasVectorizer, err := c.checkVectorizer("Document")
+// if err != nil {
+//     return nil, fmt.Errorf("检查向量化器失败: %w", err)
+// }
+// if !hasVectorizer {
+//     log.Printf("集合 Document 未配置向量化器")
 
-    nearText := c.client.GraphQL().NearTextArgBuilder().
-        WithConcepts([]string{inputText})
+//    //使用grpc调用python端的向量化模型
+
+   
+
+
+// }
+   
+nearText := c.client.GraphQL().NearVectorArgBuilder().
+WithVector(inputVectorOfText)
 
     fields := []graphql.Field{
         {Name: "pageNumber"},
@@ -263,11 +278,11 @@ func (c *Client) GetNearText(inputText string, limit int) ([]NearTextResult, err
             },
         },
     }   
-    log.Printf("执行相似度搜索: text=%s, limit=%d", inputText, limit)
+  
     response, err := c.client.GraphQL().Get().
         WithClassName("Document").
         WithFields(fields...).
-        WithNearText(nearText).
+        WithNearVector(nearText).
         WithLimit(limit).
         Do(c.ctx)   
     if err != nil { 
@@ -374,4 +389,41 @@ func (c *Client) parseNearTextResults(result *models.GraphQLResponse) ([]NearTex
     })
 
     return results, nil
+}
+
+
+// checkVectorizer 检查集合是否配置了向量化器
+func (c *Client) checkVectorizer(className string) (bool, error) {
+    schema, err := c.client.Schema().ClassGetter().
+    WithClassName(className).
+    Do(c.ctx)
+if err != nil {
+    return false, fmt.Errorf("获取集合配置失败: %w", err)
+}
+
+// 打印完整配置以便调试
+log.Printf("集合配置: %+v", schema)
+
+// 检查是否配置了向量化器
+if schema.Vectorizer == "" {
+    return false, nil
+}
+
+// 类型断言检查 ModuleConfig
+if schema.ModuleConfig == nil {
+    return false, nil
+}
+
+moduleConfig, ok := schema.ModuleConfig.(map[string]interface{})
+if !ok {
+    return false, fmt.Errorf("无效的 ModuleConfig 类型: %T", schema.ModuleConfig)
+}
+
+// 检查是否存在 text2vec-openai 配置
+_, hasOpenAI := moduleConfig["text2vec-openai"]
+
+log.Printf("集合 %s 的向量化器配置: vectorizer=%s, hasOpenAI=%v", 
+    className, schema.Vectorizer, hasOpenAI)
+
+return hasOpenAI, nil
 }

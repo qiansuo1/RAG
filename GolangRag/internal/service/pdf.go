@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/qiansuo1/ragservice/internal/config"
@@ -110,3 +111,31 @@ func (s *PdfService) Close() error {
     }
     return nil
 }
+
+
+
+
+
+func (s *PdfService) GetNearText(inputText string) ([]float32, error) {
+    if strings.TrimSpace(inputText) == "" {
+        return nil, fmt.Errorf("输入文本不能为空")
+    }
+
+
+    request := &grpcclient.VectorizeRequest{
+       Text : inputText,
+    }
+    resp,err :=  s.grpcClient.VectorizeText(context.Background(),request)
+    if err != nil{
+        return nil,fmt.Errorf("向量化文本失败: %w",err)
+        
+    }
+    if len(resp.Vector) == 0 {
+        return nil, fmt.Errorf("获取到空向量")
+    }
+
+    log.Printf("获取到向量，维度: %d", len(resp.Vector))
+
+    return resp.Vector,nil
+
+}   

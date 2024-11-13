@@ -40,6 +40,6 @@ func (s *VectorService) Delete(ids []string) error {
     return s.wvClient.DeleteDate(ids)
 }   
 
-func (s *VectorService) GetNearText(inputText string, limit int) ([]weaviate.NearTextResult, error) {
-    return s.wvClient.GetNearText(inputText, limit)
+func (s *VectorService) GetNearText(inputVectorOfText []float32, limit int) ([]weaviate.NearTextResult, error) {
+    return s.wvClient.GetNearText(inputVectorOfText, limit)
 }

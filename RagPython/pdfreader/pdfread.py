@@ -129,3 +129,23 @@ def get_pdf_chunks_with_embeddings(pages_and_chunks: list[dict]) -> list[dict]:
     return pages_and_chunks
 
 
+
+class TextVectorizer:
+    def vectorize_text(self, text: str) -> list[float]:
+        """直接调用 get_embedding 函数"""
+        try:
+            if not text:
+                raise ValueError("输入文本不能为空")
+
+            # 调用现有的 get_embedding 函数
+            result = get_embedding(text)
+            
+            # 获取向量（取第一个也是唯一的值）
+            vector = next(iter(result.values()))
+            
+            return vector
+
+        except Exception as e:
+            logging.error(f"向量化失败: {str(e)}", exc_info=True)
+            raise
+        

@@ -39,12 +39,23 @@ class PdfServiceStub(object):
                 request_serializer=pdfread__pb2.PdfRequest.SerializeToString,
                 response_deserializer=pdfread__pb2.PdfResponse.FromString,
                 _registered_method=True)
+        self.VectorizeText = channel.unary_unary(
+                '/pdfservice.PdfService/VectorizeText',
+                request_serializer=pdfread__pb2.VectorizeRequest.SerializeToString,
+                response_deserializer=pdfread__pb2.VectorizeResponse.FromString,
+                _registered_method=True)
 
 
 class PdfServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def ExtractText(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def VectorizeText(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -57,6 +68,11 @@ def add_PdfServiceServicer_to_server(servicer, server):
                     servicer.ExtractText,
                     request_deserializer=pdfread__pb2.PdfRequest.FromString,
                     response_serializer=pdfread__pb2.PdfResponse.SerializeToString,
+            ),
+            'VectorizeText': grpc.unary_unary_rpc_method_handler(
+                    servicer.VectorizeText,
+                    request_deserializer=pdfread__pb2.VectorizeRequest.FromString,
+                    response_serializer=pdfread__pb2.VectorizeResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -86,6 +102,33 @@ class PdfService(object):
             '/pdfservice.PdfService/ExtractText',
             pdfread__pb2.PdfRequest.SerializeToString,
             pdfread__pb2.PdfResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def VectorizeText(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/pdfservice.PdfService/VectorizeText',
+            pdfread__pb2.VectorizeRequest.SerializeToString,
+            pdfread__pb2.VectorizeResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -6,6 +6,7 @@ option go_package = "github.com/qiansuo1/ragserver/grpcclient";
 
 service PdfService {
   rpc ExtractText (PdfRequest) returns (stream PdfResponse) {}
+  rpc VectorizeText (VectorizeRequest) returns (VectorizeResponse) {}
 }
 
 message PdfRequest {
@@ -19,4 +20,13 @@ message PdfResponse {
   int32 chunk_word_count = 4;
   int32 chunk_token_count = 5;
   repeated float embedding = 6;
+}
+
+
+message VectorizeRequest {
+    string text = 1;
+}
+
+message VectorizeResponse {
+    repeated float vector = 1;
 }

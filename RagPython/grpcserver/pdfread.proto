@@ -4,6 +4,7 @@ package pdfservice;
 
 service PdfService {
   rpc ExtractText (PdfRequest) returns (stream PdfResponse) {}
+  rpc VectorizeText (VectorizeRequest) returns (VectorizeResponse) {}
 }
 
 message PdfRequest {
@@ -20,3 +21,10 @@ message PdfResponse {
 }
 
 
+message VectorizeRequest {
+    string text = 1;
+}
+
+message VectorizeResponse {
+    repeated float vector = 1;
+}

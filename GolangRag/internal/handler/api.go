@@ -275,8 +275,16 @@ func (h *Handler) HandleGetNearText(c *gin.Context) {
         })
         return
     }   
+    vectorOfText,err := h.pdfSvc.GetNearText(req.Text)
+    if err != nil{
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "文本向量化失败",
+            "detail": err.Error(),
+        })
+        return
+    }
 
-    results, err := h.vectorSvc.GetNearText(req.Text, req.Limit)
+    results, err := h.vectorSvc.GetNearText(vectorOfText,req.Limit)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{
             "error": "获取近似文本失败",
